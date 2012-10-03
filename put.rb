@@ -7,7 +7,7 @@ CLIPBOARD_BINARIES = ['pbcopy', 'xclip', 'clip']
 
 # TODO: support directories (tar/zip them)
 # TODO: autocompression flag
-# TODO: auto copy from CLIPBOARD_BINARIES
+# TODO: auto copy from CLIPBOARD_BINARIES in order
 
 def uploadFiles(files, destination)
 	files.each do |file|
@@ -58,6 +58,16 @@ opts = OptionParser.new do |opts|
 	$options[:mode] = :upload
 end
 opts.parse!
+
+# catch the ON case and parse ARGV accordingly
+if ARGV.length == 3 then
+	if ARGV[1].downcase == "on" then
+		$options[:destination] = ARGV[2]
+		ARGV.delete_at(1)	# remove the ON flag
+		ARGV.delete_at(2)	# remove the destination
+	end
+end
+
 
 begin
 	destination = getDestinationResource($options[:destination])
