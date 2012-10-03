@@ -11,12 +11,16 @@ require 'net/sftp' # net-sftp-2.0.5
 SFTP_URL = "ssh://root:password@localhost:22/path/to/destination"
 SFTP_RESULT_URL = "http://localhost/path/to/destination"
 
-def basic_upload(file)
+def basic_upload(file, dest_name=nil)
 	url = SFTP_URL	# load this
 	url = URI.parse(url)
 	result_url = SFTP_RESULT_URL
 
-	basename = File.basename(file)
+	if dest_name.nil? then
+		basename = File.basename(file)
+	else
+		basename = dest_name
+	end
 
 	options = {}
 	unless url.port.nil?
@@ -29,7 +33,7 @@ def basic_upload(file)
 
 	sftp = Net::SFTP.start(url.host, url.user, options) 
 	test_name = basename
-        destination_file = "." + url.path.chomp("/") + "/" + test_name + "BOG"
+        destination_file = "." + url.path.chomp("/") + "/" + test_name
 	max,min = 9,1	# starting max,min: these increase by a factor of 10 every time they fail.
 	begin
 		while sftp.stat!(destination_file)
@@ -47,6 +51,6 @@ def basic_upload(file)
 	return result_url + "/" + test_name
 end
 
-def sftp_upload(file)
-	basic_upload(file)
+def sftp_upload(file, dest_name=nil)
+	basic_upload(file, dest_name)
 end

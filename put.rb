@@ -5,16 +5,30 @@ require 'put-exceptions'
 
 CLIPBOARD_BINARIES = ['pbcopy', 'xclip', 'clip']
 
+DEFAULT_RANDOM_SIZE = 24
+
 # TODO: support directories (tar/zip them)
 # TODO: autocompression flag
 # TODO: auto copy from CLIPBOARD_BINARIES in order
 
+def generateRandomString(size = 24)
+	charset = %w{ 2 3 4 6 7 9 A C D E F G H J K M N P Q R T V W X Y Z}
+	return (0...size).map do
+		charset.to_a[rand(charset.size)] 
+	end.join
+end
+
+
 def uploadFiles(files, destination)
 	files.each do |file|
-		# TODO: add file anonymization here (rename to random letters)
+		destination_file = nil
+		if $options[:randomize_name] then 	# randomize the file name.
+			destination_file = generateRandomString($options[:randomize_name]) + File.extname(file)
+		end
+
 		file = File.expand_path(file)
 		if File.exist?(file) then
-			puts destination.call(file)
+			puts destination.call(file, destination_file)
 		else
 			puts "Skipping " + file + " because it doesn't exist."
 		end
@@ -54,7 +68,12 @@ opts = OptionParser.new do |opts|
 		# TODO: validate destination is a valid resource
 		$options[:destination] = val
 	end
-	
+
+	$options[:randomize_name] = false
+	opts.on("-r", "--randomize [N]", Integer, "Randomize the filename before uploading. Randomize to length N if specified.") do |size|
+		$options[:randomize_name] = size || DEFAULT_RANDOM_SIZE
+	end
+
 	$options[:mode] = :upload
 end
 opts.parse!
@@ -64,7 +83,7 @@ if ARGV.length == 3 then
 	if ARGV[1].downcase == "on" then
 		$options[:destination] = ARGV[2]
 		ARGV.delete_at(1)	# remove the ON flag
-		ARGV.delete_at(2)	# remove the destination
+		ARGV.delete_at(1)	# remove the destination
 	end
 end
 
@@ -80,9 +99,9 @@ rescue DestinationNotFoundException => e
 	unless $options[:destination].nil? 
 		print "Your requested destination " + $options[:destination] + " does not exist. "
 	end
+
 	puts "Please check all files required for put exist."
 	puts e.backtrace.inspect
-
 rescue Exception => e
 	puts e.message  
 	puts e.backtrace.inspect  
