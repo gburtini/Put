@@ -1,0 +1,2 @@
+class DestinationNotFoundException < IOError
+end
