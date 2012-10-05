@@ -4,12 +4,12 @@ require 'optparse'
 class DestinationNotFoundException < IOError
 end
 
+# tries to pipe the URLs in to each of these binaries in order to put them on a clipboard.
 CLIPBOARD_BINARIES = ['pbcopy', 'xclip', 'clip']
 
 DEFAULT_RANDOM_SIZE = 24
 
 # TODO: autocompression flag
-# TODO: auto copy from CLIPBOARD_BINARIES in order
 
 def generateRandomString(size = 24)
 	charset = %w{ 2 3 4 6 7 9 A C D E F G H J K M N P Q R T V W X Y Z}
@@ -18,6 +18,26 @@ def generateRandomString(size = 24)
 	end.join
 end
 
+def command?(cmd)
+	exts = ENV['PATHEXT'] ? ENV['PATHEXT'].split(';') : ['']	# Windows only AFAICT
+	ENV['PATH'].split(File::PATH_SEPARATOR).each do |path|
+		exts.each do |ext|
+			exe = "#{path}/#{cmd}#{ext}"
+			return exe if File.executable? exe
+		end
+	end
+	return nil
+end
+
+def addToClipboard(paste_string) 
+	paste_string.chomp!
+	CLIPBOARD_BINARIES.each do |binary|
+		if command?(binary) then
+			# TODO: check to make sure this works
+			`echo "#{paste_string}" | #{binary}`
+		end
+	end
+end
 
 def uploadFiles(files, destination)
 	files.each do |file|
@@ -25,6 +45,8 @@ def uploadFiles(files, destination)
 		if $options[:randomize_name] then 	# randomize the file name.
 			destination_file = generateRandomString($options[:randomize_name]) + File.extname(file)
 		end
+
+		paste_string = ""
 
 		file = File.expand_path(file)
 		if File.exist?(file) then
@@ -40,13 +62,18 @@ def uploadFiles(files, destination)
 				file = File.expand_path("/tmp/" + destination_file)
 			end
 
-			puts destination.call(file, destination_file)
+			paste_string += destination.call(file, destination_file) + "\n"
 
 			if directory == true then
 				`rm -f #{file}`	
 			end
 		else
 			puts "Skipping " + file + " because it doesn't exist."
+		end
+
+		if !paste_string.empty? then
+			addToClipboard(paste_string)
+			puts paste_string
 		end
 	end
 end
