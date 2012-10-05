@@ -1,2 +1,0 @@
-class DestinationNotFoundException < IOError
-end

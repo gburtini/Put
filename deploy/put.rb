@@ -8,7 +8,6 @@ CLIPBOARD_BINARIES = ['pbcopy', 'xclip', 'clip']
 
 DEFAULT_RANDOM_SIZE = 24
 
-# TODO: support directories (tar/zip them)
 # TODO: autocompression flag
 # TODO: auto copy from CLIPBOARD_BINARIES in order
 
