@@ -1,7 +1,8 @@
 #!/usr/bin/env ruby
 
 require 'optparse'
-require 'put-exceptions'
+class DestinationNotFoundException < IOError
+end
 
 CLIPBOARD_BINARIES = ['pbcopy', 'xclip', 'clip']
 
@@ -21,14 +22,30 @@ end
 
 def uploadFiles(files, destination)
 	files.each do |file|
-		destination_file = nil
+		destination_file = File.basename(file)
 		if $options[:randomize_name] then 	# randomize the file name.
 			destination_file = generateRandomString($options[:randomize_name]) + File.extname(file)
 		end
 
 		file = File.expand_path(file)
 		if File.exist?(file) then
+			directory = false
+			if File.directory?(file) then
+				# This is really awful. There's gotta be a nicer way to do this.
+
+				directory = true
+				destination_file = destination_file + ".tar.gz"
+				file_path = File.dirname(file)
+				file_base = File.basename(file)
+				`tar -C #{file_path}  -czf /tmp/#{destination_file} ./#{file_base}`
+				file = File.expand_path("/tmp/" + destination_file)
+			end
+
 			puts destination.call(file, destination_file)
+
+			if directory == true then
+				`rm -f #{file}`	
+			end
 		else
 			puts "Skipping " + file + " because it doesn't exist."
 		end
@@ -41,8 +58,8 @@ def getDestinationResource(request)
 		request = "basic"
 	end
 
-	if File.exist?("destinations/" + request + ".rb" ) then
-		require("destinations/" + request)
+	if File.exist?("/usr/bin/destinations/" + request + ".rb" ) then
+		require("/usr/bin/destinations/" + request)
 		return method((request + "_upload").to_sym)
 	else
 		raise DestinationNotFoundException, "Destination not found."
