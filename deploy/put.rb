@@ -33,7 +33,6 @@ def addToClipboard(paste_string)
 	paste_string.chomp!
 	CLIPBOARD_BINARIES.each do |binary|
 		if command?(binary) then
-			# TODO: check to make sure this works
 			`echo "#{paste_string}" | #{binary}`
 		end
 	end
@@ -42,30 +41,43 @@ end
 def uploadFiles(files, destination)
 	files.each do |file|
 		destination_file = File.basename(file)
-		if $options[:randomize_name] then 	# randomize the file name.
-			destination_file = generateRandomString($options[:randomize_name]) + File.extname(file)
-		end
-
+	
 		paste_string = ""
 
 		file = File.expand_path(file)
 		if File.exist?(file) then
 			directory = false
+			file_path = File.dirname(file)
+			file_base = File.basename(file)
+			cleanup = []
+			if $options[:randomize_name] then 	# randomize the file name.
+				destination_file = generateRandomString($options[:randomize_name]) + File.extname(file)
+			end
+
 			if File.directory?(file) then
 				# This is really awful. There's gotta be a nicer way to do this.
 
 				directory = true
 				destination_file = destination_file + ".tar.gz"
-				file_path = File.dirname(file)
-				file_base = File.basename(file)
 				`tar -C #{file_path}  -czf /tmp/#{destination_file} ./#{file_base}`
+				cleanup.push("/tmp/#{destination_file}")
+
 				file = File.expand_path("/tmp/" + destination_file)
+			elsif $options[:compress] then
+				`cp #{file} /tmp/`	# if we do this in place, we have to gunzip the file at the end - what if it fails?
+				`gzip /tmp/#{file_base}`
+				cleanup.push("/tmp/#{file_base}.gz")
+
+				file = File.expand_path("/tmp/" + file_base + ".gz")
+				destination_file += ".gz"
 			end
 
+
+			# upload file to destination. actually does the work here.
 			paste_string += destination.call(file, destination_file) + "\n"
 
-			if directory == true then
-				`rm -f #{file}`	
+			cleanup.each do |file|
+				File.delete(file)
 			end
 		else
 			puts "Skipping " + file + " because it doesn't exist."
@@ -104,6 +116,11 @@ opts = OptionParser.new do |opts|
         end
         opts.on('-w', '--extra-verbose', "Output even more information.") do
                 $options[:extra_verbose] = true
+        end
+
+	$options[:compress] = false
+        opts.on('-c', '--compress', "Compress before uploading.") do
+                $options[:compress] = true
         end
 
 	$options[:destination] = nil
